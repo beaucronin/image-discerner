@@ -4,7 +4,7 @@ description: A serverless image analysis service using AWS and GCP
 config:
   aws:region:
     description: AWS region for deployment
-    default: us-east-1
+    default: us-west-2
   gcp:project:
     description: GCP project ID for Vision API
   gcp:region:
