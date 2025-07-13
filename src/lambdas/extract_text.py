@@ -72,17 +72,23 @@ def handler(event, context):
         # Get CV backend (mock or real)
         cv_backend = get_cv_backend()
         
-        # Download image from S3
+        # Download image from S3 (try processed first, fallback to original)
         try:
             response = s3_client.get_object(Bucket=bucket_name, Key=processed_image_key)
             image_data = response['Body'].read()
         except Exception as e:
-            return {
-                'statusCode': 404,
-                'body': {
-                    'error': f'Failed to download image from S3: {str(e)}'
+            # Fallback to original image if processed doesn't exist
+            try:
+                original_key = event.get('original_image_key', processed_image_key.replace('processed/', ''))
+                response = s3_client.get_object(Bucket=bucket_name, Key=original_key)
+                image_data = response['Body'].read()
+            except Exception as e2:
+                return {
+                    'statusCode': 404,
+                    'body': {
+                        'error': f'Failed to download image from S3: {str(e2)}'
+                    }
                 }
-            }
         
         # Extract text using CV backend
         text_result = cv_backend.extract_text(image_data)

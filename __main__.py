@@ -9,8 +9,11 @@ import json
 # Configuration
 config = pulumi.Config()
 aws_region = config.get("aws:region") or "us-west-2"
-gcp_project = config.require("gcp:project")
-gcp_region = config.get("gcp:region") or "us-central1"
+
+# GCP configuration
+gcp_config = pulumi.Config("gcp")
+gcp_project = gcp_config.require("project")
+gcp_region = gcp_config.get("region") or "us-central1"
 
 # S3 bucket for image storage
 image_bucket = aws.s3.Bucket(
@@ -74,6 +77,12 @@ s3_policy = aws.iam.RolePolicy(
                     "s3:DeleteObject"
                 ],
                 "Resource": f"{args[0]}/*"
+            }, {
+                "Effect": "Allow",
+                "Action": [
+                    "s3:ListBucket"
+                ],
+                "Resource": args[0]
             }]
         })
     )
@@ -108,7 +117,8 @@ preprocess_lambda = aws.lambda_.Function(
     handler="preprocess.handler",
     role=lambda_role.arn,
     code=pulumi.AssetArchive({
-        "preprocess.py": pulumi.FileAsset("src/lambdas/preprocess.py")
+        "preprocess.py": pulumi.FileAsset("src/lambdas/preprocess.py"),
+        "./": pulumi.FileArchive("lambda_packages")
     }),
     timeout=60,
     memory_size=512
@@ -122,7 +132,8 @@ classifier_lambda = aws.lambda_.Function(
     role=lambda_role.arn,
     code=pulumi.AssetArchive({
         "classify.py": pulumi.FileAsset("src/lambdas/classify.py"),
-        "cv_backends/": pulumi.FileArchive("src/cv_backends")
+        "cv_backends/": pulumi.FileArchive("src/cv_backends"),
+        "./": pulumi.FileArchive("lambda_packages")
     }),
     timeout=60,
     memory_size=256,
@@ -142,7 +153,8 @@ text_extractor_lambda = aws.lambda_.Function(
     role=lambda_role.arn,
     code=pulumi.AssetArchive({
         "extract_text.py": pulumi.FileAsset("src/lambdas/extract_text.py"),
-        "cv_backends/": pulumi.FileArchive("src/cv_backends")
+        "cv_backends/": pulumi.FileArchive("src/cv_backends"),
+        "./": pulumi.FileArchive("lambda_packages")
     }),
     timeout=60,
     memory_size=256,
@@ -222,6 +234,41 @@ step_function = aws.sfn.StateMachine(
     definition=step_function_definition
 )
 
+# API Gateway Lambda function to trigger Step Functions
+api_lambda = aws.lambda_.Function(
+    "api-handler",
+    runtime="python3.11",
+    handler="api_handler.handler",
+    role=lambda_role.arn,
+    code=pulumi.AssetArchive({
+        "api_handler.py": pulumi.FileAsset("src/lambdas/api_handler.py")
+    }),
+    timeout=330,
+    memory_size=128,
+    environment=aws.lambda_.FunctionEnvironmentArgs(
+        variables={
+            "STEP_FUNCTION_ARN": step_function.arn
+        }
+    )
+)
+
+# Add Step Functions execution permission to API Lambda
+step_function_invoke_policy = aws.iam.RolePolicy(
+    "api-lambda-stepfunctions-policy",
+    role=lambda_role.id,
+    policy=json.dumps({
+        "Version": "2012-10-17",
+        "Statement": [{
+            "Effect": "Allow",
+            "Action": [
+                "states:StartExecution",
+                "states:DescribeExecution"
+            ],
+            "Resource": "*"
+        }]
+    })
+)
+
 # API Gateway
 api_gateway = aws.apigatewayv2.Api(
     "image-discerner-api",
@@ -231,6 +278,40 @@ api_gateway = aws.apigatewayv2.Api(
         allow_methods=["POST", "GET", "OPTIONS"],
         allow_headers=["content-type", "authorization"]
     )
+)
+
+# API Gateway Integration
+api_integration = aws.apigatewayv2.Integration(
+    "api-integration",
+    api_id=api_gateway.id,
+    integration_type="AWS_PROXY",
+    integration_uri=api_lambda.arn,
+    integration_method="POST"
+)
+
+# API Gateway Route
+api_route = aws.apigatewayv2.Route(
+    "analyze-route",
+    api_id=api_gateway.id,
+    route_key="POST /analyze",
+    target=api_integration.id.apply(lambda id: f"integrations/{id}")
+)
+
+# Lambda permission for API Gateway
+api_permission = aws.lambda_.Permission(
+    "api-gateway-lambda-permission",
+    action="lambda:InvokeFunction",
+    function=api_lambda.name,
+    principal="apigateway.amazonaws.com",
+    source_arn=api_gateway.execution_arn.apply(lambda arn: f"{arn}/*/*")
+)
+
+# API Gateway Stage (required for HTTP API to work)
+api_stage = aws.apigatewayv2.Stage(
+    "api-stage",
+    api_id=api_gateway.id,
+    name="$default",
+    auto_deploy=True
 )
 
 # Exports

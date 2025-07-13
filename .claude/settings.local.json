@@ -1,7 +1,11 @@
 {
   "permissions": {
     "allow": [
-      "WebFetch(domain:docs.getmoto.org)"
+      "WebFetch(domain:docs.getmoto.org)",
+      "Bash(source:*)",
+      "Bash(export PATH=$PATH:/Users/beau/.pulumi/bin)",
+      "Bash(export PULUMI_CONFIG_PASSPHRASE=test123)",
+      "Bash(pulumi up:*)"
     ],
     "deny": []
   }

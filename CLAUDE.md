@@ -43,20 +43,42 @@ pip install -r requirements-dev.txt  # Development deps
 Before deployment, set these Pulumi config values:
 ```bash
 pulumi config set gcp:project YOUR_GCP_PROJECT_ID
-pulumi config set aws:region us-east-1  # optional, defaults shown
+pulumi config set aws:region us-west-2  # optional, defaults shown
 pulumi config set gcp:region us-central1  # optional
 ```
 
 ## Lambda Function Structure
 
-Each Lambda has placeholder implementation that needs completion:
-- `image-preprocessor`: Resize/optimize images for CV APIs
-- `image-classifier`: GCP Vision API classification 
-- `text-extractor`: OCR and structured ID parsing
-- `result-aggregator`: Combine and format final response
+Current implementation status:
+- `image-preprocessor`: ✅ Basic data flow (no actual image processing yet)
+- `image-classifier`: ✅ Mock backend working, GCP integration pending
+- `text-extractor`: ✅ Mock backend working, GCP integration pending  
+- `result-aggregator`: ✅ Functional result combination and formatting
+- `api-handler`: ✅ Synchronous API endpoint working
+
+## Current API Endpoint
+
+**Production URL**: https://pcgwxp6v9a.execute-api.us-west-2.amazonaws.com/analyze
+
+The API currently returns mock data from the CV backends. Real computer vision integration pending.
 
 ## Security Notes
 
 - GCP service account credentials stored in AWS Secrets Manager
 - S3 bucket encrypted with AES256
 - IAM roles follow least privilege principle
+
+## AWS Access
+
+- Remember that this is how we access aws
+
+## Pulumi Deployment Notes
+
+- Standard Pulumi deployment command includes:
+  - Activating virtual environment
+  - Setting Pulumi binary path
+  - Setting Pulumi config passphrase
+  - Running deployment with auto-approval
+```bash
+source venv/bin/activate && export PATH=$PATH:/Users/beau/.pulumi/bin && export PULUMI_CONFIG_PASSPHRASE=test123 && pulumi up --yes
+```

@@ -121,45 +121,61 @@ tests/
 
 ## API Usage
 
-The service processes images through S3 and Step Functions:
+The service provides a **synchronous HTTP API** that processes images through S3 and Step Functions, returning results immediately.
+
+**API Endpoint**: `POST https://pcgwxp6v9a.execute-api.us-west-2.amazonaws.com/analyze`
 
 ### Input Format
 
 ```json
 {
-  "image_key": "images/truck-photo.jpg",
-  "bucket_name": "image-discerner-bucket"
+  "image_key": "images/truck-photo.jpg", 
+  "bucket_name": "image-discerner-dev"
 }
 ```
+
+**Note**: Currently using mock computer vision backends. Real GCP Vision API integration pending.
 
 ### Output Format
 
 ```json
 {
-  "analysis_complete": true,
-  "timestamp": "2024-01-15T10:30:00Z",
-  "image_classification": {
-    "detected_items": [
-      {
-        "category": "vehicle",
-        "subcategory": "truck", 
-        "confidence": 0.92,
-        "brand": "UPS",
-        "fleet_numbers": ["12345"]
-      }
-    ]
-  },
-  "text_analysis": {
-    "extracted_text": "UPS FLEET 12345",
-    "structured_identifiers": {
-      "container_ids": [],
-      "fleet_numbers": ["12345"],
-      "license_plates": []
+  "success": true,
+  "execution_arn": "arn:aws:states:us-west-2:584058910789:execution:...",
+  "execution_name": "analysis-20250713-185556", 
+  "analysis_result": {
+    "statusCode": 200,
+    "body": {
+      "analysis_complete": true,
+      "timestamp": "2025-07-13T18:55:57.806492+00:00",
+      "image_classification": {
+        "detected_items": [
+          {
+            "category": "vehicle",
+            "subcategory": "delivery_truck",
+            "confidence": 0.90,
+            "brand": "FedEx",
+            "fleet_numbers": ["12345"],
+            "license_plates": ["FLEET", "12345"]
+          }
+        ]
+      },
+      "text_analysis": {
+        "extracted_text": "CONTAINER MSCU7654321 FLEET 12345",
+        "structured_identifiers": {
+          "container_ids": ["MSCU7654321"],
+          "fleet_numbers": ["12345"],
+          "license_plates": ["FLEET", "12345"]
+        }
+      },
+      "confidence_score": 0.93
     }
   },
-  "confidence_score": 0.89
+  "processing_time_seconds": 2
 }
 ```
+
+**Note**: Above response shows mock data from development backends.
 
 ## Supported Identifiers
 
@@ -194,11 +210,11 @@ The service recognizes and extracts:
 - Update documentation for API changes
 - Ensure all tests pass before submitting PRs
 
-## Deployment Environments
+## Deployment Status
 
-- **Development** - Use mock CV backend for fast iteration
-- **Staging** - Deploy with GCP Vision API for realistic testing  
-- **Production** - Full deployment with monitoring and error handling
+- **Current**: Mock backends deployed and functional via synchronous API
+- **Next**: GCP Vision API integration for real computer vision
+- **Future**: Production monitoring, error handling, and optimization
 
 ## Cost Considerations
 

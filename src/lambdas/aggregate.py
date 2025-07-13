@@ -48,13 +48,19 @@ def handler(event, context):
     """
     try:
         # Extract results from Step Functions parallel execution
-        parallel_results = event.get('body', [])
+        # Step Functions passes parallel results as a list directly in the event
+        parallel_results = event if isinstance(event, list) else event.get('body', [])
+        
+        # Debug: log the actual event structure
+        print(f"DEBUG: Event type: {type(event)}")
+        print(f"DEBUG: Event content: {json.dumps(event, default=str)}")
+        print(f"DEBUG: Parallel results: {parallel_results}")
         
         if len(parallel_results) != 2:
             return {
                 'statusCode': 400,
                 'body': {
-                    'error': 'Expected 2 parallel results (classification and text extraction)'
+                    'error': f'Expected 2 parallel results, got {len(parallel_results)}. Event: {json.dumps(event, default=str)[:500]}'
                 }
             }
         
