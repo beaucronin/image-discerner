@@ -39,6 +39,9 @@ def get_classification_backend() -> CVBackend:
     elif backend_type in ['gcp', 'gcp_vision']:
         from .gcp_backend import GCPVisionBackend
         return GCPVisionBackend()
+    elif backend_type == 'gcp_vision_rest':
+        from .gcp_rest_backend import GCPVisionRestBackend
+        return GCPVisionRestBackend()
     elif backend_type == 'gcp_automl':
         # TODO: Implement GCPAutoMLBackend
         raise NotImplementedError("GCP AutoML backend not yet implemented")
@@ -62,6 +65,9 @@ def get_text_extraction_backend() -> CVBackend:
     elif backend_type in ['gcp', 'gcp_vision']:
         from .gcp_backend import GCPVisionBackend
         return GCPVisionBackend()
+    elif backend_type == 'gcp_vision_rest':
+        from .gcp_rest_backend import GCPVisionRestBackend
+        return GCPVisionRestBackend()
     elif backend_type == 'gcp_document_ai':
         # TODO: Implement GCPDocumentAIBackend
         raise NotImplementedError("GCP Document AI backend not yet implemented")

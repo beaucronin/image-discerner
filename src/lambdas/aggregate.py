@@ -1,5 +1,6 @@
 import json
 from datetime import datetime, timezone
+from inference_engine import infer_vehicle_context
 
 def merge_identifiers_with_classifications(classifications, text_identifiers):
     """
@@ -53,8 +54,8 @@ def handler(event, context):
         
         # Debug: log the actual event structure
         print(f"DEBUG: Event type: {type(event)}")
-        print(f"DEBUG: Event content: {json.dumps(event, default=str)}")
-        print(f"DEBUG: Parallel results: {parallel_results}")
+        print(f"DEBUG: Event content: {json.dumps(event, default=str)[:1000]}...")
+        print(f"DEBUG: Parallel results count: {len(parallel_results)}")
         
         if len(parallel_results) != 2:
             return {
@@ -89,6 +90,12 @@ def handler(event, context):
             text_results.get('structured_identifiers', {})
         )
         
+        # Apply contextual inference
+        contextual_inferences = infer_vehicle_context(
+            classification_results.get('classifications', []),
+            text_results
+        )
+        
         # Calculate overall confidence
         overall_confidence = calculate_overall_confidence(classification_results, text_results)
         
@@ -112,6 +119,7 @@ def handler(event, context):
                     'structured_identifiers': text_results.get('structured_identifiers', {}),
                     'text_blocks': text_results.get('text_blocks', [])
                 },
+                'contextual_inferences': contextual_inferences,
                 'confidence_score': overall_confidence,
                 'processing_metadata': {
                     'total_processing_time_ms': total_processing_time,

@@ -6,7 +6,11 @@
       "Bash(export PATH=$PATH:/Users/beau/.pulumi/bin)",
       "Bash(export PULUMI_CONFIG_PASSPHRASE=test123)",
       "Bash(pulumi up:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(aws logs get-log-events:*)",
+      "Bash(aws logs describe-log-streams:*)",
+      "Bash(ls:*)",
+      "Bash(pulumi:*)"
     ],
     "deny": []
   }

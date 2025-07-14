@@ -43,4 +43,8 @@ Thumbs.db
 # Secrets
 *.pem
 *.key
-service-account.json
+service-account.jsonlayers-465904-4a4277ac3c50.json
+
+# Test images and results
+IMG_*.jpg
+*.json

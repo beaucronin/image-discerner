@@ -1,6 +1,6 @@
 # Image Discerner
 
-A serverless image analysis service that identifies commercial and industrial vehicles, infrastructure assets, and extracts key text identifiers from images. Built with AWS Lambda, Step Functions, and GCP Vision API.
+A serverless image analysis service that identifies commercial and industrial vehicles, infrastructure assets, and extracts key text identifiers from images. Features contextual inference engine that combines visual detection with text analysis to identify specific vehicle types and fleet information. Built with AWS Lambda, Step Functions, and GCP Vision API.
 
 ## Architecture
 
@@ -10,7 +10,7 @@ The service uses a Step Functions workflow to orchestrate image processing:
 2. **Parallel Analysis** - Simultaneously run:
    - **Classification** - Identify vehicles, containers, infrastructure 
    - **Text Extraction** - Extract fleet numbers, container IDs, license plates
-3. **Aggregation** - Combine results and enhance with business logic
+3. **Aggregation** - Combine results with contextual inference engine
 
 ### Tech Stack
 

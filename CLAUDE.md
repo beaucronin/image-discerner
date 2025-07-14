@@ -4,14 +4,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Image Discerner is a serverless image analysis service that identifies commercial/industrial vehicles, infrastructure assets, and extracts key text identifiers from images. Uses AWS for orchestration and GCP Vision API for computer vision.
+Image Discerner is a serverless image analysis service that identifies commercial/industrial vehicles, infrastructure assets, and extracts key text identifiers from images. Uses AWS for orchestration and GCP Vision API for computer vision. Features contextual inference engine that combines visual detection with text analysis to identify specific vehicle types and fleet information.
 
 ## Architecture
 
-- **AWS Step Functions** orchestrate the pipeline: Preprocess → Parallel (Classify + Extract Text) → Aggregate
-- **Lambda Functions**: 4 separate functions for each pipeline stage
+- **AWS Step Functions** orchestrate the pipeline: Preprocess → Parallel (Classify + Extract Text) → Aggregate → Inference
+- **Lambda Functions**: 5 separate functions for each pipeline stage including contextual inference
 - **Storage**: S3 for image storage with versioning
-- **APIs**: Pluggable CV backend design (starting with GCP Vision API)
+- **APIs**: Pluggable CV backend design (GCP Vision REST API integrated)
+- **Inference Engine**: Pattern-based contextual analysis combining visual + text evidence
 - **Infrastructure**: Pulumi with Python for multi-cloud deployment
 
 ## Development Commands
@@ -51,26 +52,22 @@ pulumi config set gcp:region us-central1  # optional
 
 Current implementation status:
 - `image-preprocessor`: ✅ Basic data flow (no actual image processing yet)
-- `image-classifier`: ✅ Mock backend working, GCP integration pending
-- `text-extractor`: ✅ Mock backend working, GCP integration pending  
-- `result-aggregator`: ✅ Functional result combination and formatting
+- `image-classifier`: ✅ GCP Vision REST API integrated, multi-backend support
+- `text-extractor`: ✅ GCP Vision REST API integrated, multi-backend support
+- `result-aggregator`: ✅ Functional result combination with contextual inference engine
 - `api-handler`: ✅ Synchronous API endpoint working
 
 ## Current API Endpoint
 
 **Production URL**: https://pcgwxp6v9a.execute-api.us-west-2.amazonaws.com/analyze
 
-The API currently returns mock data from the CV backends. Real computer vision integration pending.
+The API integrates with GCP Vision API for real computer vision analysis and includes contextual inference to identify vehicle types and fleet information.
 
 ## Security Notes
 
 - GCP service account credentials stored in AWS Secrets Manager
 - S3 bucket encrypted with AES256
 - IAM roles follow least privilege principle
-
-## AWS Access
-
-- Remember that this is how we access aws
 
 ## Pulumi Deployment Notes
 
@@ -103,6 +100,32 @@ export CV_BACKEND=mock                   # Fallback for unspecified tasks
 
 ### Available Backend Options
 - **mock**: Mock backend with realistic fake data
-- **gcp_vision**: GCP Vision API (general object detection + OCR)
+- **gcp_vision_rest**: GCP Vision API REST (general object detection + OCR) ✅ IMPLEMENTED
+- **gcp_vision**: GCP Vision API gRPC (general object detection + OCR) - Deprecated due to Lambda compatibility
 - **gcp_automl**: GCP AutoML Vision (custom object detection) - TODO
 - **gcp_document_ai**: GCP Document AI (advanced OCR) - TODO
+
+## Contextual Inference Engine
+
+The service includes an inference engine that combines visual object detection with text analysis to identify specific vehicle types:
+
+### Supported Vehicle Patterns
+- **Postal Delivery**: Detects USPS vehicles using visual detection + "usps.com" text + 7-digit fleet numbers
+- **Commercial Delivery**: Identifies FedEx, UPS, Amazon vehicles 
+- **Shipping Containers**: ISO container ID detection
+- **Emergency Vehicles**: Police, fire, ambulance identification
+
+### Example Results
+```json
+{
+  "contextual_inferences": [
+    {
+      "vehicle_type": "postal_delivery",
+      "confidence": 0.87,
+      "description": "Postal delivery vehicle with fleet ID 8424021",
+      "fleet_identifiers": ["8424021"],
+      "evidence": ["detected_car", "text_pattern_usps\\.com", "text_pattern_\\d{7}"]
+    }
+  ]
+}
+```

@@ -83,6 +83,12 @@ s3_policy = aws.iam.RolePolicy(
                     "s3:ListBucket"
                 ],
                 "Resource": args[0]
+            }, {
+                "Effect": "Allow",
+                "Action": [
+                    "secretsmanager:GetSecretValue"
+                ],
+                "Resource": "arn:aws:secretsmanager:*:*:secret:gcp-credentials-*"
             }]
         })
     )
@@ -140,7 +146,7 @@ classifier_lambda = aws.lambda_.Function(
     environment=aws.lambda_.FunctionEnvironmentArgs(
         variables={
             "CV_BACKEND": "mock",  # Fallback backend
-            "CLASSIFICATION_BACKEND": "mock",  # Use mock for object detection/classification
+            "CLASSIFICATION_BACKEND": "gcp_vision_rest",  # Use GCP Vision REST API for object detection
             "GCP_CREDENTIALS_SECRET_NAME": gcp_credentials_secret.name
         }
     )
@@ -162,7 +168,7 @@ text_extractor_lambda = aws.lambda_.Function(
     environment=aws.lambda_.FunctionEnvironmentArgs(
         variables={
             "CV_BACKEND": "mock",  # Fallback backend
-            "TEXT_EXTRACTION_BACKEND": "mock",  # Use mock for OCR/text extraction
+            "TEXT_EXTRACTION_BACKEND": "gcp_vision_rest",  # Use GCP Vision REST API
             "GCP_CREDENTIALS_SECRET_NAME": gcp_credentials_secret.name
         }
     )
@@ -175,7 +181,8 @@ aggregator_lambda = aws.lambda_.Function(
     handler="aggregate.handler",
     role=lambda_role.arn,
     code=pulumi.AssetArchive({
-        "aggregate.py": pulumi.FileAsset("src/lambdas/aggregate.py")
+        "aggregate.py": pulumi.FileAsset("src/lambdas/aggregate.py"),
+        "inference_engine.py": pulumi.FileAsset("src/lambdas/inference_engine.py")
     }),
     timeout=30,
     memory_size=128
