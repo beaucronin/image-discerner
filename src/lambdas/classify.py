@@ -7,7 +7,7 @@ import sys
 sys.path.append('/opt/python')
 sys.path.append('.')
 
-from cv_backends.factory import get_cv_backend
+from cv_backends.factory import get_classification_backend
 
 s3_client = boto3.client('s3')
 
@@ -31,8 +31,8 @@ def handler(event, context):
                 }
             }
         
-        # Get CV backend (mock or real)
-        cv_backend = get_cv_backend()
+        # Get classification backend (mock, gcp_vision, or gcp_automl)
+        cv_backend = get_classification_backend()
         
         # Download image from S3 (try processed first, fallback to original)
         try:

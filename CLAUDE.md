@@ -82,3 +82,27 @@ The API currently returns mock data from the CV backends. Real computer vision i
 ```bash
 source venv/bin/activate && export PATH=$PATH:/Users/beau/.pulumi/bin && export PULUMI_CONFIG_PASSPHRASE=test123 && pulumi up --yes
 ```
+
+## CV Backend Configuration
+
+The service supports multiple backend configurations for different tasks:
+
+### Single Backend (Legacy)
+```bash
+# Use same backend for all tasks
+export CV_BACKEND=mock  # or gcp
+```
+
+### Multi-Backend (Recommended) 
+```bash
+# Task-specific backends
+export CLASSIFICATION_BACKEND=mock        # Object detection: mock, gcp_vision, gcp_automl
+export TEXT_EXTRACTION_BACKEND=mock      # OCR: mock, gcp_vision, gcp_document_ai
+export CV_BACKEND=mock                   # Fallback for unspecified tasks
+```
+
+### Available Backend Options
+- **mock**: Mock backend with realistic fake data
+- **gcp_vision**: GCP Vision API (general object detection + OCR)
+- **gcp_automl**: GCP AutoML Vision (custom object detection) - TODO
+- **gcp_document_ai**: GCP Document AI (advanced OCR) - TODO

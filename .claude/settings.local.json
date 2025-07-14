@@ -5,7 +5,8 @@
       "Bash(source:*)",
       "Bash(export PATH=$PATH:/Users/beau/.pulumi/bin)",
       "Bash(export PULUMI_CONFIG_PASSPHRASE=test123)",
-      "Bash(pulumi up:*)"
+      "Bash(pulumi up:*)",
+      "Bash(git add:*)"
     ],
     "deny": []
   }

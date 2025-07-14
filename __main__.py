@@ -139,7 +139,8 @@ classifier_lambda = aws.lambda_.Function(
     memory_size=256,
     environment=aws.lambda_.FunctionEnvironmentArgs(
         variables={
-            "CV_BACKEND": "mock",  # Use mock backend for testing
+            "CV_BACKEND": "mock",  # Fallback backend
+            "CLASSIFICATION_BACKEND": "mock",  # Use mock for object detection/classification
             "GCP_CREDENTIALS_SECRET_NAME": gcp_credentials_secret.name
         }
     )
@@ -160,7 +161,8 @@ text_extractor_lambda = aws.lambda_.Function(
     memory_size=256,
     environment=aws.lambda_.FunctionEnvironmentArgs(
         variables={
-            "CV_BACKEND": "mock",  # Use mock backend for testing
+            "CV_BACKEND": "mock",  # Fallback backend
+            "TEXT_EXTRACTION_BACKEND": "mock",  # Use mock for OCR/text extraction
             "GCP_CREDENTIALS_SECRET_NAME": gcp_credentials_secret.name
         }
     )
