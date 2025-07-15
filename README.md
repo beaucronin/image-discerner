@@ -117,7 +117,9 @@ src/
     ├── classify.py           # Object classification
     ├── extract_text.py       # OCR and text parsing
     ├── aggregate.py          # Result combination + contextual inference
-    └── inference_engine.py   # Vehicle type pattern matching
+    ├── inference_engine.py   # Vehicle type pattern matching
+    ├── api_handler.py        # Step Functions API gateway integration
+    └── get_upload_url.py     # Pre-signed URL generation for mobile uploads
 
 tests/
 ├── unit/                 # Unit tests for individual components
@@ -151,12 +153,12 @@ The service includes an intelligent inference system that combines visual object
 
 ## API Usage
 
-The service provides a **synchronous HTTP API** that processes images through S3 and Step Functions, returning results immediately.
+The service provides **synchronous HTTP APIs** for both analysis and secure mobile uploads.
 
-**API Endpoint**: `POST https://pcgwxp6v9a.execute-api.us-west-2.amazonaws.com/analyze`
+### Analysis API
+**Endpoint**: `POST https://pcgwxp6v9a.execute-api.us-west-2.amazonaws.com/analyze`
 
-### Input Format
-
+**Input Format**:
 ```json
 {
   "image_key": "images/truck-photo.jpg", 
@@ -164,7 +166,30 @@ The service provides a **synchronous HTTP API** that processes images through S3
 }
 ```
 
-**Note**: Currently using mock computer vision backends. Real GCP Vision API integration pending.
+### Mobile Upload API
+**Endpoint**: `POST https://pcgwxp6v9a.execute-api.us-west-2.amazonaws.com/upload-url`
+
+Generates secure, time-limited pre-signed URLs for direct S3 uploads from mobile apps without exposing AWS credentials.
+
+**Input Format**:
+```json
+{
+  "file_extension": "jpg"
+}
+```
+
+**Response**:
+```json
+{
+  "upload_url": "https://s3-presigned-url...",
+  "image_key": "uploads/20250715-123456-abc123.jpg",
+  "bucket_name": "image-discerner-dev",
+  "expires_in": 900,
+  "content_type": "image/jpg"
+}
+```
+
+**Supported File Types**: jpg, jpeg, png, heic, heif
 
 ### Output Format
 
@@ -218,10 +243,12 @@ The service recognizes and extracts:
 
 ## Security
 
-- GCP service account credentials stored in AWS Secrets Manager
-- S3 buckets encrypted with AES256
-- IAM roles follow least privilege principle
-- No secrets or keys committed to repository
+- **Mobile App Security**: Cognito Identity Pools provide temporary AWS credentials
+- **Pre-signed URLs**: Time-limited (15 minutes) upload access with no permanent credentials
+- **GCP Credentials**: Service account credentials stored in AWS Secrets Manager
+- **S3 Encryption**: Buckets encrypted with AES256
+- **IAM Policies**: Least privilege principle with scoped S3 access (uploads/* prefix only)
+- **No Secrets**: No credentials committed to repository
 
 ## Contributing
 
@@ -242,9 +269,10 @@ The service recognizes and extracts:
 
 ## Deployment Status
 
-- **Current**: Mock backends deployed and functional via synchronous API
-- **Next**: GCP Vision API integration for real computer vision
-- **Future**: Production monitoring, error handling, and optimization
+- **Current**: GCP Vision API integrated with mobile upload infrastructure
+- **Features**: Contextual inference engine, iOS app integration, secure pre-signed uploads
+- **Infrastructure**: Step Functions + Lambda architecture with Cognito Identity Pools
+- **Next**: Production monitoring, error handling, and optimization
 
 ## Cost Considerations
 

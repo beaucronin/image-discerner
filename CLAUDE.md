@@ -78,12 +78,24 @@ Current implementation status:
 - `result-aggregator`: ✅ Contextual inference engine with vehicle pattern matching
 - `api-handler`: ✅ Synchronous API endpoint working
 - `inference-engine`: ✅ Pattern-based vehicle type identification system
+- `upload-url-generator`: ✅ Secure pre-signed URL generation for mobile uploads
 
-## Current API Endpoint
+## API Endpoints
 
-**Production URL**: https://pcgwxp6v9a.execute-api.us-west-2.amazonaws.com/analyze
+**Analysis API**: https://pcgwxp6v9a.execute-api.us-west-2.amazonaws.com/analyze
+**Upload URL API**: https://pcgwxp6v9a.execute-api.us-west-2.amazonaws.com/upload-url
 
-The API integrates with GCP Vision API for real computer vision analysis and includes contextual inference to identify vehicle types and fleet information.
+The service provides both synchronous image analysis and secure mobile upload capabilities. Analysis integrates with GCP Vision API for real computer vision and includes contextual inference to identify vehicle types and fleet information.
+
+## Mobile App Integration
+
+**Cognito Identity Pool ID**: us-west-2:3fdc01e7-9f4c-486f-8566-ddbc27e73e22
+
+The service supports secure iOS/Android app integration through:
+- AWS Cognito Identity Pools for temporary credentials
+- Pre-signed S3 upload URLs (15-minute expiry)
+- Scoped IAM permissions (uploads/* prefix only)
+- Complete Swift integration guide available in `docs/ios-integration.md`
 
 ## Security Notes
 

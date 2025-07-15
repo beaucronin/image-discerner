@@ -323,11 +323,118 @@ api_stage = aws.apigatewayv2.Stage(
     auto_deploy=True
 )
 
+# Cognito Identity Pool for mobile app access
+identity_pool = aws.cognito.IdentityPool(
+    "image-discerner-identity-pool",
+    identity_pool_name="ImageDiscernerApp",
+    allow_unauthenticated_identities=True,
+    allow_classic_flow=False
+)
+
+# IAM role for unauthenticated users (mobile app uploads)
+mobile_upload_role = aws.iam.Role(
+    "mobile-upload-role",
+    assume_role_policy=pulumi.Output.all(identity_pool.id).apply(
+        lambda args: json.dumps({
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                    "Effect": "Allow",
+                    "Principal": {
+                        "Federated": "cognito-identity.amazonaws.com"
+                    },
+                    "Action": "sts:AssumeRoleWithWebIdentity",
+                    "Condition": {
+                        "StringEquals": {
+                            "cognito-identity.amazonaws.com:aud": args[0]
+                        },
+                        "ForAnyValue:StringLike": {
+                            "cognito-identity.amazonaws.com:amr": "unauthenticated"
+                        }
+                    }
+                }
+            ]
+        })
+    )
+)
+
+# S3 upload policy for mobile users
+mobile_upload_policy = aws.iam.RolePolicy(
+    "mobile-upload-policy",
+    role=mobile_upload_role.id,
+    policy=pulumi.Output.all(image_bucket.arn).apply(
+        lambda args: json.dumps({
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                    "Effect": "Allow",
+                    "Action": [
+                        "s3:PutObject",
+                        "s3:PutObjectAcl"
+                    ],
+                    "Resource": f"{args[0]}/uploads/*"
+                }
+            ]
+        })
+    )
+)
+
+# Attach the role to the identity pool
+identity_pool_role_attachment = aws.cognito.IdentityPoolRoleAttachment(
+    "identity-pool-role-attachment",
+    identity_pool_id=identity_pool.id,
+    roles={
+        "unauthenticated": mobile_upload_role.arn
+    }
+)
+
+# Lambda function: Upload URL Generator
+upload_url_lambda = aws.lambda_.Function(
+    "upload-url-generator",
+    runtime="python3.11",
+    handler="get_upload_url.handler",
+    role=lambda_role.arn,
+    code=pulumi.AssetArchive({
+        "get_upload_url.py": pulumi.FileAsset("src/lambdas/get_upload_url.py")
+    }),
+    timeout=30,
+    memory_size=128
+)
+
+# API Gateway Route for upload URL endpoint
+upload_url_integration = aws.apigatewayv2.Integration(
+    "upload-url-integration",
+    api_id=api_gateway.id,
+    integration_type="AWS_PROXY",
+    integration_uri=upload_url_lambda.arn,
+    integration_method="POST"
+)
+
+upload_url_route = aws.apigatewayv2.Route(
+    "upload-url-route",
+    api_id=api_gateway.id,
+    route_key="POST /upload-url",
+    target=upload_url_integration.id.apply(lambda id: f"integrations/{id}")
+)
+
+# Lambda permission for API Gateway (upload URL endpoint)
+upload_url_permission = aws.lambda_.Permission(
+    "upload-url-lambda-permission",
+    action="lambda:InvokeFunction",
+    function=upload_url_lambda.name,
+    principal="apigateway.amazonaws.com",
+    source_arn=api_gateway.execution_arn.apply(lambda arn: f"{arn}/*/*")
+)
+
 # Exports
 pulumi.export("bucket_name", image_bucket.bucket)
 pulumi.export("step_function_arn", step_function.arn)
 pulumi.export("api_gateway_url", api_gateway.api_endpoint)
+pulumi.export("upload_url_endpoint", api_gateway.api_endpoint.apply(lambda url: f"{url}/upload-url"))
+pulumi.export("analyze_endpoint", api_gateway.api_endpoint.apply(lambda url: f"{url}/analyze"))
+pulumi.export("cognito_identity_pool_id", identity_pool.id)
 pulumi.export("preprocess_lambda_arn", preprocess_lambda.arn)
 pulumi.export("classifier_lambda_arn", classifier_lambda.arn)
 pulumi.export("text_extractor_lambda_arn", text_extractor_lambda.arn)
 pulumi.export("aggregator_lambda_arn", aggregator_lambda.arn)
+pulumi.export("upload_url_lambda_arn", upload_url_lambda.arn)
