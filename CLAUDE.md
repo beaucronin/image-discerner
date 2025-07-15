@@ -21,25 +21,51 @@ Image Discerner is a serverless image analysis service that identifies commercia
 
 ## Recent Changes (Session 2025-07-15)
 
-**Status**: Critical fixes deployed and tested successfully
+**Status**: Major API redesign completed and deployed successfully
 
-**Major Fixes Completed**:
+**MAJOR REDESIGN: Structured Output Format (v2.0)**:
+1. **API Response Transformation** - Redesigned analyze endpoint to return structured primary subject summary instead of raw CV data
+2. **Enhanced Inference Engine** - Added comprehensive operator detection, fleet ID extraction, and license plate recognition
+3. **Client-Friendly Format** - New JSON structure with category/subcategory/operator/fleet_id for easy mobile app integration
+4. **Comprehensive Documentation** - Created complete API reference and updated iOS integration guide
+
+**Previous Critical Fixes**:
 1. **Fixed Step Functions parameter passing** - Resolved 400 errors in parallel processing steps
 2. **Fixed bounding box coordinates** - Implemented actual image dimension detection for accurate CV results
 3. **Updated CORS configuration** - Added specific origins with wildcard support for Vercel deployments
 4. **Enhanced preprocessing pipeline** - Added native image dimension parsing without external dependencies
 
-**Technical Details**:
-- **Step Functions**: Added proper `Parameters` configuration to pass `image_dimensions` between pipeline steps
-- **Coordinate accuracy**: Replaced hardcoded 800x600 conversion with actual image dimensions (e.g., 3024x4032)
-- **Preprocessing function**: Implemented JPEG/PNG dimension parsing using struct module (no PIL dependency)
-- **CV backends**: Updated to use actual image dimensions for normalized coordinate conversion
-- **CORS**: Configured for `localhost:5173` and `https://layers-collector-svelte-*-beaus-projects-59f320cd.vercel.app`
+**New API Response Format (v2.0)**:
+```json
+{
+  "primary_subject": {
+    "category": "commercial_vehicle",
+    "subcategory": "delivery_van", 
+    "operator": "UPS",
+    "fleet_id": "1Z2345",
+    "confidence": 0.87,
+    "additional_details": {
+      "license_plate": "ABC123",
+      "text_identifiers": ["1Z2345", "UPS"],
+      "description": "UPS delivery vehicle with fleet ID 1Z2345"
+    }
+  }
+}
+```
+
+**Technical Implementation**:
+- **Enhanced inference**: Automatic operator detection (UPS, FedEx, USPS, Amazon, etc.)
+- **Smart categorization**: Comprehensive taxonomy (commercial_vehicle, emergency_vehicle, cargo_container)
+- **Fleet identification**: Pattern-based extraction of fleet IDs, container IDs, license plates
+- **Backward compatibility**: Legacy detailed analysis preserved for debugging
+- **Response versioning**: Format version 2.0 with processing metadata
 
 **Test Results**:
-- Pipeline working correctly with 8-second processing time
-- Bounding boxes now accurate (e.g., `{"x": 1323, "y": 2016, "width": 189, "height": 456}` for 3024x4032 image)
-- No errors in logs across all Lambda functions
+- Successfully deployed and tested with IMG_4074.jpg
+- Correctly extracted fleet ID "8424021" from test image
+- Response processing time: ~8 seconds
+- All Lambda functions operating without errors
+- Mobile-friendly structured output validated
 
 ```bash
 # Setup development environment

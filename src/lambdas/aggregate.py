@@ -1,6 +1,6 @@
 import json
 from datetime import datetime, timezone
-from inference_engine import infer_vehicle_context
+from inference_engine import infer_vehicle_context, determine_primary_subject
 
 def merge_identifiers_with_classifications(classifications, text_identifiers):
     """
@@ -96,6 +96,13 @@ def handler(event, context):
             text_results
         )
         
+        # Determine primary subject using enhanced analysis
+        primary_subject = determine_primary_subject(
+            classification_results.get('classifications', []),
+            text_results,
+            contextual_inferences
+        )
+        
         # Calculate overall confidence
         overall_confidence = calculate_overall_confidence(classification_results, text_results)
         
@@ -104,11 +111,16 @@ def handler(event, context):
         text_time = text_results.get('processing_metadata', {}).get('processing_time_ms', 0)
         total_processing_time = classification_time + text_time
         
-        return {
-            'statusCode': 200,
-            'body': {
-                'analysis_complete': True,
-                'timestamp': datetime.now(timezone.utc).isoformat(),
+        # New structured response format
+        response_body = {
+            'analysis_complete': True,
+            'timestamp': datetime.now(timezone.utc).isoformat(),
+            
+            # NEW: Primary subject summary (main response format)
+            'primary_subject': primary_subject,
+            
+            # LEGACY: Detailed breakdown (for backward compatibility and debugging)
+            'detailed_analysis': {
                 'image_classification': {
                     'detected_items': enhanced_classifications,
                     'raw_classifications': classification_results.get('classifications', []),
@@ -120,14 +132,21 @@ def handler(event, context):
                     'text_blocks': text_results.get('text_blocks', [])
                 },
                 'contextual_inferences': contextual_inferences,
-                'confidence_score': overall_confidence,
-                'processing_metadata': {
-                    'total_processing_time_ms': total_processing_time,
-                    'classification_provider': classification_results.get('processing_metadata', {}).get('api_provider'),
-                    'text_provider': text_results.get('processing_metadata', {}).get('api_provider'),
-                    'image_key': classification_results.get('image_key') or text_results.get('image_key')
-                }
+                'confidence_score': overall_confidence
+            },
+            
+            'processing_metadata': {
+                'total_processing_time_ms': total_processing_time,
+                'classification_provider': classification_results.get('processing_metadata', {}).get('api_provider'),
+                'text_provider': text_results.get('processing_metadata', {}).get('api_provider'),
+                'image_key': classification_results.get('image_key') or text_results.get('image_key'),
+                'response_format_version': '2.0'
             }
+        }
+        
+        return {
+            'statusCode': 200,
+            'body': response_body
         }
         
     except Exception as e:

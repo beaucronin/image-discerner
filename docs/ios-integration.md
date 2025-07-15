@@ -27,8 +27,9 @@ let region = AWSRegionType.USWest2
 
 ## Implementation
 
-### 1. Swift Models
+### 1. Swift Models (Version 2.0)
 
+#### Upload URL Models
 ```swift
 struct UploadURLResponse: Codable {
     let uploadURL: String
@@ -45,7 +46,10 @@ struct UploadURLResponse: Codable {
         case contentType = "content_type"
     }
 }
+```
 
+#### Analysis Request/Response Models
+```swift
 struct AnalysisRequest: Codable {
     let imageKey: String
     let bucketName: String
@@ -68,37 +72,61 @@ struct AnalysisResult: Codable {
 
 struct AnalysisData: Codable {
     let statusCode: Int
-    let body: AnalysisBody
+    let body: AnalysisResponse
 }
 
-struct AnalysisBody: Codable {
+// NEW: Simplified response structure focused on primary subject
+struct AnalysisResponse: Codable {
     let analysisComplete: Bool
-    let imageClassification: ImageClassification
-    let textAnalysis: TextAnalysis
-    let contextualInferences: [ContextualInference]
+    let timestamp: String
+    let primarySubject: PrimarySubject
+    let processingMetadata: ProcessingMetadata
     
     enum CodingKeys: String, CodingKey {
         case analysisComplete = "analysis_complete"
-        case imageClassification = "image_classification"
-        case textAnalysis = "text_analysis"
-        case contextualInferences = "contextual_inferences"
+        case timestamp
+        case primarySubject = "primary_subject"
+        case processingMetadata = "processing_metadata"
     }
 }
 
-struct ContextualInference: Codable {
-    let vehicleType: String
+struct PrimarySubject: Codable {
+    let category: String
+    let subcategory: String
+    let operator: String?
+    let fleetId: String?
     let confidence: Double
-    let description: String
-    let fleetIdentifiers: [String]
-    let evidence: [String]
+    let additionalDetails: AdditionalDetails
     
     enum CodingKeys: String, CodingKey {
-        case vehicleType = "vehicle_type"
+        case category
+        case subcategory
+        case operator
+        case fleetId = "fleet_id"
         case confidence
-        case description
-        case fleetIdentifiers = "fleet_identifiers"
-        case evidence
+        case additionalDetails = "additional_details"
     }
+}
+
+struct AdditionalDetails: Codable {
+    let licensePlate: String?
+    let textIdentifiers: [String]
+    let description: String
+    
+    enum CodingKeys: String, CodingKey {
+        case licensePlate = "license_plate"
+        case textIdentifiers = "text_identifiers"
+        case description
+    }
+}
+
+struct ProcessingMetadata: Codable {
+    let totalProcessingTimeMs: Int
+    let responseFormatVersion: String
+    
+    enum CodingKeys: String, CodingKey {
+        case totalProcessingTimeMs = "total_processing_time_ms"
+        case responseFormatVersion = "response_format_version"
 }
 ```
 
@@ -271,24 +299,125 @@ struct AnalysisResultView: View {
             Text("Analysis Results")
                 .font(.headline)
             
-            ForEach(result.analysisResult.body.contextualInferences, id: \.vehicleType) { inference in
-                VStack(alignment: .leading) {
-                    Text(inference.description)
-                        .font(.body)
+            // NEW: Display primary subject information
+            let primarySubject = result.analysisResult.body.primarySubject
+            
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("Type:")
                         .fontWeight(.medium)
-                    
-                    Text("Confidence: \\(Int(inference.confidence * 100))%")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                    Text("\(primarySubject.category) - \(primarySubject.subcategory)")
                 }
-                .padding()
-                .background(Color.gray.opacity(0.1))
-                .cornerRadius(8)
+                
+                if let operator = primarySubject.operator {
+                    HStack {
+                        Text("Operator:")
+                            .fontWeight(.medium)
+                        Text(operator)
+                    }
+                }
+                
+                if let fleetId = primarySubject.fleetId {
+                    HStack {
+                        Text("Fleet ID:")
+                            .fontWeight(.medium)
+                        Text(fleetId)
+                    }
+                }
+                
+                HStack {
+                    Text("Confidence:")
+                        .fontWeight(.medium)
+                    Text("\(Int(primarySubject.confidence * 100))%")
+                }
+                
+                if let licensePlate = primarySubject.additionalDetails.licensePlate {
+                    HStack {
+                        Text("License Plate:")
+                            .fontWeight(.medium)
+                        Text(licensePlate)
+                    }
+                }
+                
+                Text("Description:")
+                    .fontWeight(.medium)
+                Text(primarySubject.additionalDetails.description)
+                    .foregroundColor(.secondary)
             }
+            .padding()
+            .background(Color.gray.opacity(0.1))
+            .cornerRadius(8)
         }
     }
 }
 ```
+
+### 4. Example Response Handling
+
+```swift
+// Example: Handle different vehicle types
+func handleAnalysisResult(_ result: AnalysisResult) {
+    let primarySubject = result.analysisResult.body.primarySubject
+    
+    switch primarySubject.category {
+    case "commercial_vehicle":
+        if primarySubject.operator == "UPS" {
+            print("UPS delivery vehicle detected with fleet ID: \(primarySubject.fleetId ?? "unknown")")
+        } else if primarySubject.operator == "USPS" {
+            print("USPS postal vehicle detected")
+        }
+        
+    case "emergency_vehicle":
+        print("Emergency vehicle detected: \(primarySubject.additionalDetails.description)")
+        
+    case "cargo_container":
+        print("Shipping container detected: \(primarySubject.fleetId ?? "unknown")")
+        
+    default:
+        print("Unknown subject: \(primarySubject.additionalDetails.description)")
+    }
+}
+```
+
+## Response Examples
+
+### UPS Delivery Truck
+```json
+{
+  "primary_subject": {
+    "category": "commercial_vehicle",
+    "subcategory": "delivery_van", 
+    "operator": "UPS",
+    "fleet_id": "1Z2345",
+    "confidence": 0.91,
+    "additional_details": {
+      "license_plate": "BRN123",
+      "text_identifiers": ["1Z2345", "UPS"],
+      "description": "UPS delivery vehicle with fleet ID 1Z2345"
+    }
+  }
+}
+```
+
+### USPS Mail Truck
+```json
+{
+  "primary_subject": {
+    "category": "commercial_vehicle",
+    "subcategory": "postal_van",
+    "operator": "USPS", 
+    "fleet_id": "8424021",
+    "confidence": 0.87,
+    "additional_details": {
+      "license_plate": null,
+      "text_identifiers": ["8424021", "usps.com"],
+      "description": "Postal delivery vehicle with fleet ID 8424021"
+    }
+  }
+}
+```
+
+For complete API documentation including all response formats and error handling, see the [API Reference](api-reference.md).
 
 ## Security Features
 
