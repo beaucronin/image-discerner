@@ -49,7 +49,7 @@ class MockCVBackend(CVBackend):
             "TRUCK #T-4567"
         ]
     
-    def classify_image(self, image_data: bytes, image_format: str = "JPEG") -> Dict[str, Any]:
+    def classify_image(self, image_data: bytes, image_format: str = "JPEG", image_dimensions: Dict[str, int] = None) -> Dict[str, Any]:
         """Mock image classification that returns realistic commercial/industrial asset data"""
         start_time = time.time()
         

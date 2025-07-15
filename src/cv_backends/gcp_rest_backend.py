@@ -65,7 +65,7 @@ class GCPVisionRestBackend(CVBackend):
         
         return response.json()['access_token']
     
-    def classify_image(self, image_data: bytes, image_format: str = "JPEG") -> Dict[str, Any]:
+    def classify_image(self, image_data: bytes, image_format: str = "JPEG", image_dimensions: Dict[str, int] = None) -> Dict[str, Any]:
         """Classify objects in image using GCP Vision REST API"""
         if not self.access_token:
             raise RuntimeError("GCP credentials not initialized")
@@ -117,10 +117,14 @@ class GCPVisionRestBackend(CVBackend):
             # Process object localizations
             objects = vision_response.get('localizedObjectAnnotations', [])
             for obj in objects:
-                # Convert normalized coordinates to pixel coordinates (assuming 800x600 image)
+                # Convert normalized coordinates to pixel coordinates using actual image dimensions
                 vertices = obj['boundingPoly']['normalizedVertices']
-                x_coords = [v.get('x', 0) * 800 for v in vertices]
-                y_coords = [v.get('y', 0) * 600 for v in vertices]
+                # Use provided dimensions or fall back to defaults
+                img_width = image_dimensions.get('width', 800) if image_dimensions else 800
+                img_height = image_dimensions.get('height', 600) if image_dimensions else 600
+                
+                x_coords = [v.get('x', 0) * img_width for v in vertices]
+                y_coords = [v.get('y', 0) * img_height for v in vertices]
                 
                 classification = {
                     'category': self._categorize_object(obj['name']),

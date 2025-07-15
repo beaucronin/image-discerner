@@ -5,13 +5,14 @@ class CVBackend(ABC):
     """Abstract base class for computer vision backends"""
     
     @abstractmethod
-    def classify_image(self, image_data: bytes, image_format: str = "JPEG") -> Dict[str, Any]:
+    def classify_image(self, image_data: bytes, image_format: str = "JPEG", image_dimensions: Dict[str, int] = None) -> Dict[str, Any]:
         """
         Classify objects in an image.
         
         Args:
             image_data: Raw image bytes
             image_format: Image format (JPEG, PNG, etc.)
+            image_dimensions: Dict with 'width' and 'height' keys for accurate bounding boxes
             
         Returns:
             Dict containing classifications, confidence scores, detected objects

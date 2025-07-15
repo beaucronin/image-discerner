@@ -10,7 +10,9 @@
       "Bash(aws logs get-log-events:*)",
       "Bash(aws logs describe-log-streams:*)",
       "Bash(ls:*)",
-      "Bash(pulumi:*)"
+      "Bash(pulumi:*)",
+      "Bash(aws logs describe-log-groups:*)",
+      "Bash(aws logs tail:*)"
     ],
     "deny": []
   }

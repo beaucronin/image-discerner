@@ -22,6 +22,7 @@ def handler(event, context):
     try:
         processed_image_key = event.get('processed_image_key')
         bucket_name = event.get('bucket_name')
+        image_dimensions = event.get('image_dimensions')
         
         if not processed_image_key or not bucket_name:
             return {
@@ -52,8 +53,8 @@ def handler(event, context):
                     }
                 }
         
-        # Classify image using CV backend
-        classification_result = cv_backend.classify_image(image_data)
+        # Classify image using CV backend with image dimensions
+        classification_result = cv_backend.classify_image(image_data, image_dimensions=image_dimensions)
         
         return {
             'statusCode': 200,

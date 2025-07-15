@@ -17,6 +17,30 @@ Image Discerner is a serverless image analysis service that identifies commercia
 
 ## Development Commands
 
+**Working deployment command**: `pulumi up` (confirmed working from Makefile)
+
+## Recent Changes (Session 2025-07-15)
+
+**Status**: Critical fixes deployed and tested successfully
+
+**Major Fixes Completed**:
+1. **Fixed Step Functions parameter passing** - Resolved 400 errors in parallel processing steps
+2. **Fixed bounding box coordinates** - Implemented actual image dimension detection for accurate CV results
+3. **Updated CORS configuration** - Added specific origins with wildcard support for Vercel deployments
+4. **Enhanced preprocessing pipeline** - Added native image dimension parsing without external dependencies
+
+**Technical Details**:
+- **Step Functions**: Added proper `Parameters` configuration to pass `image_dimensions` between pipeline steps
+- **Coordinate accuracy**: Replaced hardcoded 800x600 conversion with actual image dimensions (e.g., 3024x4032)
+- **Preprocessing function**: Implemented JPEG/PNG dimension parsing using struct module (no PIL dependency)
+- **CV backends**: Updated to use actual image dimensions for normalized coordinate conversion
+- **CORS**: Configured for `localhost:5173` and `https://layers-collector-svelte-*-beaus-projects-59f320cd.vercel.app`
+
+**Test Results**:
+- Pipeline working correctly with 8-second processing time
+- Bounding boxes now accurate (e.g., `{"x": 1323, "y": 2016, "width": 189, "height": 456}` for 3024x4032 image)
+- No errors in logs across all Lambda functions
+
 ```bash
 # Setup development environment
 make dev-setup

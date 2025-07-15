@@ -29,6 +29,24 @@ image_bucket = aws.s3.Bucket(
     )
 )
 
+# S3 bucket CORS configuration
+bucket_cors = aws.s3.BucketCorsConfigurationV2(
+    "image-discerner-bucket-cors",
+    bucket=image_bucket.id,
+    cors_rules=[
+        aws.s3.BucketCorsConfigurationV2CorsRuleArgs(
+            allowed_headers=["*"],
+            allowed_methods=["GET", "PUT", "POST", "DELETE", "HEAD"],
+            allowed_origins=[
+                "http://localhost:5173",
+                "https://layers-collector-svelte-*-beaus-projects-59f320cd.vercel.app"
+            ],
+            expose_headers=["ETag"],
+            max_age_seconds=3000
+        )
+    ]
+)
+
 # IAM role for Lambda functions
 lambda_role = aws.iam.Role(
     "lambda-execution-role",
@@ -212,6 +230,12 @@ step_function_definition = pulumi.Output.all(
                         "ClassifyImage": {
                             "Type": "Task",
                             "Resource": arns[1],
+                            "Parameters": {
+                                "processed_image_key.$": "$.body.processed_image_key",
+                                "bucket_name.$": "$.body.bucket_name",
+                                "original_image_key.$": "$.body.original_image_key",
+                                "image_dimensions.$": "$.body.image_dimensions"
+                            },
                             "End": True
                         }
                     }
@@ -222,6 +246,12 @@ step_function_definition = pulumi.Output.all(
                         "ExtractText": {
                             "Type": "Task",
                             "Resource": arns[2],
+                            "Parameters": {
+                                "processed_image_key.$": "$.body.processed_image_key",
+                                "bucket_name.$": "$.body.bucket_name",
+                                "original_image_key.$": "$.body.original_image_key",
+                                "image_dimensions.$": "$.body.image_dimensions"
+                            },
                             "End": True
                         }
                     }
