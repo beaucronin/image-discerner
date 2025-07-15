@@ -6,6 +6,7 @@ import os
 
 # Add src to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../src'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../src/lambdas'))
 
 class TestPreprocessLambda:
     """Unit tests for preprocess Lambda function"""
@@ -79,7 +80,7 @@ class TestClassifyLambda:
     
     def test_classify_handler_missing_parameters(self):
         """Test classify handler with missing parameters"""
-        with patch('lambdas.classify.get_cv_backend', return_value=self.mock_backend):
+        with patch('lambdas.classify.get_classification_backend', return_value=self.mock_backend):
             from lambdas.classify import handler
             
             event = {'bucket_name': 'test-bucket'}
@@ -93,7 +94,7 @@ class TestClassifyLambda:
         """Test classify handler with S3 download error"""
         mock_s3.get_object.side_effect = Exception("S3 error")
         
-        with patch('lambdas.classify.get_cv_backend', return_value=self.mock_backend):
+        with patch('lambdas.classify.get_classification_backend', return_value=self.mock_backend):
             from lambdas.classify import handler
             
             event = {
@@ -115,7 +116,7 @@ class TestClassifyLambda:
         mock_response = {'Body': mock_body}
         mock_s3.get_object.return_value = mock_response
         
-        with patch('lambdas.classify.get_cv_backend', return_value=self.mock_backend):
+        with patch('lambdas.classify.get_classification_backend', return_value=self.mock_backend):
             from lambdas.classify import handler
             
             event = {
@@ -174,7 +175,7 @@ class TestExtractTextLambda:
         mock_response = {'Body': mock_body}
         mock_s3.get_object.return_value = mock_response
         
-        with patch('lambdas.extract_text.get_cv_backend', return_value=self.mock_backend):
+        with patch('lambdas.extract_text.get_text_extraction_backend', return_value=self.mock_backend):
             from lambdas.extract_text import handler
             
             event = {

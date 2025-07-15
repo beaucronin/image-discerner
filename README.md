@@ -88,35 +88,65 @@ make lint
 make format
 ```
 
-### CV Backend Switching
+### CV Backend Configuration
 
-The service uses a pluggable CV backend system:
+The service uses a multi-backend system with task-specific configuration:
 
 ```bash
-# Use mock backend for development/testing (default)
-export CV_BACKEND=mock
+# Task-specific backends (recommended)
+export CLASSIFICATION_BACKEND=gcp_vision_rest    # Object detection
+export TEXT_EXTRACTION_BACKEND=gcp_vision_rest   # OCR and text extraction
 
-# Use GCP Vision API for production
-export CV_BACKEND=gcp
+# Legacy single backend (fallback)
+export CV_BACKEND=mock                            # Development/testing default
+
+# Available backends: mock, gcp_vision_rest
 ```
 
 ### Project Structure
 
 ```
 src/
-├── cv_backends/          # Pluggable computer vision backends
-│   ├── mock_backend.py   # Development/testing backend
-│   ├── gcp_backend.py    # GCP Vision API implementation
-│   └── factory.py        # Backend selection logic
-└── lambdas/              # AWS Lambda functions
-    ├── preprocess.py     # Image preprocessing
-    ├── classify.py       # Object classification
-    ├── extract_text.py   # OCR and text parsing
-    └── aggregate.py      # Result combination
+├── cv_backends/              # Pluggable computer vision backends
+│   ├── mock_backend.py       # Development/testing backend
+│   ├── gcp_rest_backend.py   # GCP Vision REST API implementation
+│   ├── gcp_backend.py        # GCP Vision gRPC (deprecated)
+│   └── factory.py            # Multi-backend selection logic
+└── lambdas/                  # AWS Lambda functions
+    ├── preprocess.py         # Image preprocessing
+    ├── classify.py           # Object classification
+    ├── extract_text.py       # OCR and text parsing
+    ├── aggregate.py          # Result combination + contextual inference
+    └── inference_engine.py   # Vehicle type pattern matching
 
 tests/
 ├── unit/                 # Unit tests for individual components
 └── integration/          # End-to-end workflow tests
+```
+
+## Key Features
+
+### Contextual Inference Engine
+The service includes an intelligent inference system that combines visual object detection with text analysis to identify specific vehicle types:
+
+- **Postal Delivery**: Detects USPS vehicles using "usps.com" text + 7-digit fleet numbers
+- **Commercial Delivery**: Identifies FedEx, UPS, Amazon vehicles with branding patterns
+- **Shipping Containers**: ISO container ID recognition (4 letters + 6 digits + 1 digit)  
+- **Emergency Vehicles**: Police, fire, ambulance identification
+
+**Example Output**:
+```json
+{
+  "contextual_inferences": [
+    {
+      "vehicle_type": "postal_delivery",
+      "confidence": 0.87,
+      "description": "Postal delivery vehicle with fleet ID 8424021",
+      "fleet_identifiers": ["8424021"],
+      "evidence": ["detected_car", "text_pattern_usps\\.com", "text_pattern_\\d{7}"]
+    }
+  ]
+}
 ```
 
 ## API Usage

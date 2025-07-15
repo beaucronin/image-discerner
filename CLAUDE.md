@@ -39,6 +39,27 @@ pip install -r requirements.txt      # Production deps
 pip install -r requirements-dev.txt  # Development deps
 ```
 
+## Save Progress Workflow
+
+Claude Code supports an intelligent "save progress" workflow that automatically:
+
+1. **Runs tests** and analyzes results for any failures or issues
+2. **Updates documentation** (CLAUDE.md, README.md) based on current project state and recent changes
+3. **Generates meaningful commit messages** that accurately describe what changed
+4. **Commits and pushes** changes with proper error handling
+
+### Usage
+Simply say **"save progress"** to trigger this workflow.
+
+### What it does intelligently:
+- Analyzes current project state and recent modifications
+- Updates documentation to reflect new features, architecture changes, or status updates
+- Handles test failures and provides actionable feedback
+- Creates contextual commit messages based on actual changes made
+- Manages git operations including conflict resolution
+
+This workflow preserves development momentum by automatically capturing and documenting progress without manual overhead.
+
 ## Configuration Required
 
 Before deployment, set these Pulumi config values:
@@ -51,11 +72,12 @@ pulumi config set gcp:region us-central1  # optional
 ## Lambda Function Structure
 
 Current implementation status:
-- `image-preprocessor`: ✅ Basic data flow (no actual image processing yet)
-- `image-classifier`: ✅ GCP Vision REST API integrated, multi-backend support
+- `image-preprocessor`: ✅ HTTP response format, error handling improved
+- `image-classifier`: ✅ GCP Vision REST API integrated, multi-backend support  
 - `text-extractor`: ✅ GCP Vision REST API integrated, multi-backend support
-- `result-aggregator`: ✅ Functional result combination with contextual inference engine
+- `result-aggregator`: ✅ Contextual inference engine with vehicle pattern matching
 - `api-handler`: ✅ Synchronous API endpoint working
+- `inference-engine`: ✅ Pattern-based vehicle type identification system
 
 ## Current API Endpoint
 

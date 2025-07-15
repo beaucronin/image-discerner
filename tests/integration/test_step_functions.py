@@ -3,6 +3,12 @@ import json
 import boto3
 from moto import mock_aws
 from unittest.mock import patch, Mock
+import sys
+import os
+
+# Add src to path for imports
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../src'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../src/lambdas'))
 
 @pytest.mark.integration
 class TestStepFunctionsWorkflow:

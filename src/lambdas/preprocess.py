@@ -17,7 +17,12 @@ def handler(event, context):
         bucket_name = event.get('bucket_name')
         
         if not image_key or not bucket_name:
-            raise Exception('Missing required parameters: image_key, bucket_name')
+            return {
+                'statusCode': 400,
+                'body': {
+                    'error': 'Missing required parameters: image_key, bucket_name'
+                }
+            }
         
         # TODO: Implement image preprocessing logic
         # - Download from S3
@@ -27,15 +32,23 @@ def handler(event, context):
         processed_key = f"processed/{image_key}"
         
         return {
-            'original_image_key': image_key,
-            'processed_image_key': processed_key,
-            'bucket_name': bucket_name,
-            'processing_metadata': {
-                'original_size': None,
-                'processed_size': None,
-                'format': 'JPEG'
+            'statusCode': 200,
+            'body': {
+                'original_image_key': image_key,
+                'processed_image_key': processed_key,
+                'bucket_name': bucket_name,
+                'processing_metadata': {
+                    'original_size': None,
+                    'processed_size': None,
+                    'format': 'JPEG'
+                }
             }
         }
         
     except Exception as e:
-        raise Exception(f'Processing failed: {str(e)}')
+        return {
+            'statusCode': 500,
+            'body': {
+                'error': f'Processing failed: {str(e)}'
+            }
+        }
