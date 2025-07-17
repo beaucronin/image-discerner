@@ -139,13 +139,16 @@ The service includes an intelligent inference system that combines visual object
 **Example Output**:
 ```json
 {
-  "contextual_inferences": [
+  "entities": [
     {
-      "vehicle_type": "postal_delivery",
+      "type": "commercial_vehicle:van",
+      "operator": "USPS",
+      "identifiers": [
+        "fleet:8424021",
+        "license_plate:unknown:ABC123"
+      ],
       "confidence": 0.87,
-      "description": "Postal delivery vehicle with fleet ID 8424021",
-      "fleet_identifiers": ["8424021"],
-      "evidence": ["detected_car", "text_pattern_usps\\.com", "text_pattern_\\d{7}"]
+      "properties": {}
     }
   ]
 }
@@ -197,49 +200,47 @@ Generates secure, time-limited pre-signed URLs for direct S3 uploads from mobile
 {
   "success": true,
   "execution_arn": "arn:aws:states:us-west-2:584058910789:execution:...",
-  "execution_name": "analysis-20250713-185556", 
+  "execution_name": "analysis-20250717-185556", 
   "analysis_result": {
     "statusCode": 200,
     "body": {
       "analysis_complete": true,
-      "timestamp": "2025-07-13T18:55:57.806492+00:00",
-      "image_classification": {
-        "detected_items": [
-          {
-            "category": "vehicle",
-            "subcategory": "delivery_truck",
-            "confidence": 0.90,
-            "brand": "FedEx",
-            "fleet_numbers": ["12345"],
-            "license_plates": ["FLEET", "12345"]
-          }
-        ]
-      },
-      "text_analysis": {
-        "extracted_text": "CONTAINER MSCU7654321 FLEET 12345",
-        "structured_identifiers": {
-          "container_ids": ["MSCU7654321"],
-          "fleet_numbers": ["12345"],
-          "license_plates": ["FLEET", "12345"]
+      "timestamp": "2025-07-17T18:55:57.806492+00:00",
+      
+      "entities": [
+        {
+          "type": "commercial_vehicle:van",
+          "operator": "USPS",
+          "identifiers": [
+            "fleet:8424021",
+            "license_plate:unknown:ABC123"
+          ],
+          "confidence": 0.87,
+          "properties": {}
         }
-      },
-      "confidence_score": 0.93
+      ],
+      
+      "processing_metadata": {
+        "total_processing_time_ms": 8000,
+        "response_format_version": "3.0"
+      }
     }
   },
-  "processing_time_seconds": 2
+  "processing_time_seconds": 8
 }
 ```
 
-**Note**: Above response shows mock data from development backends.
-
 ## Supported Identifiers
 
-The service recognizes and extracts:
+The service recognizes and extracts structured identifiers:
 
-- **Container IDs** - Standard shipping container format (4 letters + 6-7 digits)
-- **Fleet Numbers** - Vehicle fleet identifiers 
-- **License Plates** - Various US license plate formats
-- **Commercial Brands** - UPS, FedEx, etc. (visual classification)
+- **fleet:ID** - Vehicle fleet identifiers (e.g., `fleet:8424021`)
+- **license_plate:jurisdiction:number** - License plates with jurisdiction (e.g., `license_plate:california:ABC123`)
+- **container_id:ISO_ID** - Standard shipping container format (e.g., `container_id:MSKU1234567`)
+- **tail_id:ID** - Aircraft tail numbers (e.g., `tail_id:N123AB`)
+- **other_id:ID** - Other identification numbers
+
+**Operators Automatically Detected**: UPS, FedEx, USPS, Amazon, DHL, Maersk, Evergreen, COSCO, MSC, Police, Fire, Ambulance
 
 ## Security
 
@@ -269,10 +270,10 @@ The service recognizes and extracts:
 
 ## Deployment Status
 
-- **Current**: GCP Vision API integrated with mobile upload infrastructure
-- **Features**: Contextual inference engine, iOS app integration, secure pre-signed uploads
+- **Current**: Entities format v3.0 with target definitions compliance
+- **Features**: Multi-entity detection, structured identifiers, contextual inference engine, mobile upload infrastructure
 - **Infrastructure**: Step Functions + Lambda architecture with Cognito Identity Pools
-- **Next**: Production monitoring, error handling, and optimization
+- **Next**: Aircraft detection, jurisdiction-specific license plate recognition, properties metadata
 
 ## Cost Considerations
 

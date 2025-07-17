@@ -56,89 +56,95 @@ Analyze an uploaded image and return structured information about the primary su
 }
 ```
 
-#### Response Format (Version 2.0)
+#### Response Format (Version 3.0)
 
-The API returns a structured summary of the primary subject, with detailed analysis available for advanced use cases.
+The API returns an array of entities found in the image.
 
 ```json
 {
   "analysis_complete": true,
-  "timestamp": "2025-07-15T18:25:19.725642+00:00",
+  "timestamp": "2025-07-17T18:45:19.725642+00:00",
   
-  "primary_subject": {
-    "category": "commercial_vehicle",
-    "subcategory": "delivery_van",
-    "operator": "UPS",
-    "fleet_id": "1Z2345",
-    "confidence": 0.87,
-    "additional_details": {
-      "license_plate": "ABC123",
-      "text_identifiers": ["1Z2345", "UPS"],
-      "description": "UPS delivery vehicle with fleet ID 1Z2345"
+  "entities": [
+    {
+      "type": "commercial_vehicle:van",
+      "operator": "USPS",
+      "identifiers": [
+        "fleet:8424021",
+        "license_plate:unknown:ABC123"
+      ],
+      "confidence": 0.85,
+      "properties": {}
     }
-  },
-  
-  "detailed_analysis": {
-    "image_classification": { ... },
-    "text_analysis": { ... },
-    "contextual_inferences": [ ... ],
-    "confidence_score": 0.87
-  },
+  ],
   
   "processing_metadata": {
     "total_processing_time_ms": 8000,
     "classification_provider": "gcp_vision_rest",
     "text_provider": "gcp_vision_rest",
     "image_key": "processed/uploads/20250715-123456-abc123.jpg",
-    "response_format_version": "2.0"
+    "response_format_version": "3.0"
   }
 }
 ```
 
 ---
 
-## Primary Subject Structure
+## Entities Structure (Version 3.0)
 
-### Categories and Subcategories
+The new entities format provides a more structured approach to identifying multiple objects in images.
 
-#### Commercial Vehicle
-- `delivery_van` - Package delivery vehicles (UPS, FedEx, Amazon)
-- `postal_van` - Mail delivery vehicles (USPS)
-- `service_truck` - Utility and service vehicles
-- `cargo_truck` - Large freight vehicles
+### Entity Format
 
-#### Emergency Vehicle  
-- `emergency_response` - Police, fire, ambulance vehicles
+```json
+{
+  "type": "commercial_vehicle:van",
+  "operator": "USPS",
+  "identifiers": [
+    "fleet:8424021",
+    "license_plate:california:ABC123"
+  ],
+  "confidence": 0.85,
+  "properties": {}
+}
+```
 
-#### Cargo Container
-- `shipping_container` - ISO shipping containers
-- `storage_container` - Temporary storage units
+### Entity Types
 
-#### Infrastructure
-- `building` - Commercial/industrial buildings
-- `warehouse` - Storage facilities
-- `loading_dock` - Cargo loading areas
+Uses colon syntax for hierarchical categorization:
 
-#### Other
-- `unknown` - Unidentified subjects
-- `person` - Human subjects
-- `street_scene` - General street/traffic scenes
+- **commercial_vehicle:van** - Delivery and service vans
+- **commercial_vehicle:step_van** - Step vans for delivery
+- **commercial_vehicle:panel_truck** - Panel trucks
+- **commercial_vehicle:tractor_trailer** - Large freight vehicles
+- **commercial_vehicle:propeller_aircraft** - Propeller aircraft
+- **commercial_vehicle:jet_aircraft** - Jet aircraft
+- **cargo_container** - Shipping containers
+- **emergency_vehicle:response** - Police, fire, ambulance vehicles
 
-### Operators
+### Structured Identifiers
 
-Common operators automatically identified:
-- **Delivery**: UPS, FedEx, Amazon, DHL
-- **Postal**: USPS
-- **Shipping**: Maersk, Evergreen, COSCO, MSC
-- **Emergency**: Police, Fire, Ambulance
+All identifiers use a structured format:
 
-### Fleet Identifiers
+- **fleet:ID** - Fleet identification numbers (e.g., `fleet:8424021`)
+- **license_plate:jurisdiction:number** - License plates (e.g., `license_plate:california:ABC123`)
+- **container_id:ISO_ID** - Container identifiers (e.g., `container_id:MSKU1234567`)
+- **tail_id:ID** - Aircraft tail numbers (e.g., `tail_id:N123AB`)
+- **other_id:ID** - Other identification numbers
 
-The API extracts various fleet identification patterns:
-- **7-digit numbers** (common for USPS: `8424021`)
-- **Container IDs** (ISO format: `MSKU1234567`)
-- **License plates** (various state formats)
-- **Company tracking numbers**
+### Properties
+
+Entity-specific metadata (extensible for future use):
+
+```json
+{
+  "properties": {
+    "size_code": "45G1",
+    "rating_kva": 50
+  }
+}
+```
+
 
 ---
 
@@ -147,72 +153,83 @@ The API extracts various fleet identification patterns:
 ### UPS Delivery Truck
 ```json
 {
-  "primary_subject": {
-    "category": "commercial_vehicle",
-    "subcategory": "delivery_van",
-    "operator": "UPS",
-    "fleet_id": "1Z2345",
-    "confidence": 0.91,
-    "additional_details": {
-      "license_plate": "BRN123",
-      "text_identifiers": ["1Z2345", "UPS"],
-      "description": "UPS delivery vehicle with fleet ID 1Z2345"
+  "entities": [
+    {
+      "type": "commercial_vehicle:van",
+      "operator": "UPS",
+      "identifiers": [
+        "fleet:1Z2345",
+        "license_plate:unknown:BRN123"
+      ],
+      "confidence": 0.91,
+      "properties": {}
     }
-  }
+  ]
 }
 ```
 
 ### USPS Mail Truck
 ```json
 {
-  "primary_subject": {
-    "category": "commercial_vehicle", 
-    "subcategory": "postal_van",
-    "operator": "USPS",
-    "fleet_id": "8424021",
-    "confidence": 0.87,
-    "additional_details": {
-      "license_plate": null,
-      "text_identifiers": ["8424021", "usps.com"],
-      "description": "Postal delivery vehicle with fleet ID 8424021"
+  "entities": [
+    {
+      "type": "commercial_vehicle:van",
+      "operator": "USPS",
+      "identifiers": [
+        "fleet:8424021"
+      ],
+      "confidence": 0.87,
+      "properties": {}
     }
-  }
+  ]
 }
 ```
 
 ### Shipping Container
 ```json
 {
-  "primary_subject": {
-    "category": "cargo_container",
-    "subcategory": "shipping_container", 
-    "operator": "Maersk",
-    "fleet_id": "MSKU1234567",
-    "confidence": 0.94,
-    "additional_details": {
-      "license_plate": null,
-      "text_identifiers": ["MSKU1234567"],
-      "description": "Maersk shipping container MSKU1234567"
+  "entities": [
+    {
+      "type": "cargo_container",
+      "operator": "Maersk",
+      "identifiers": [
+        "container_id:MSKU1234567"
+      ],
+      "confidence": 0.94,
+      "properties": {
+        "size_code": "45G1"
+      }
     }
-  }
+  ]
 }
 ```
 
-### Unknown Subject
+### Multiple Entities Example
 ```json
 {
-  "primary_subject": {
-    "category": "unknown",
-    "subcategory": "unidentified",
-    "operator": null,
-    "fleet_id": null,
-    "confidence": 0.0,
-    "additional_details": {
-      "license_plate": null,
-      "text_identifiers": [],
-      "description": "Unable to identify primary subject"
+  "entities": [
+    {
+      "type": "commercial_vehicle:tractor_trailer",
+      "operator": "FedEx",
+      "identifiers": [
+        "fleet:FX1234",
+        "license_plate:california:ABC123"
+      ],
+      "confidence": 0.89,
+      "properties": {}
+    },
+    {
+      "type": "cargo_container",
+      "operator": "MSC",
+      "identifiers": [
+        "container_id:MSCU7654321"
+      ],
+      "confidence": 0.92,
+      "properties": {
+        "size_code": "20G1"
+      }
     }
-  }
+  ]
 }
 ```
 

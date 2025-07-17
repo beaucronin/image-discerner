@@ -19,53 +19,52 @@ Image Discerner is a serverless image analysis service that identifies commercia
 
 **Working deployment command**: `pulumi up` (confirmed working from Makefile)
 
-## Recent Changes (Session 2025-07-15)
+## Recent Changes (Session 2025-07-17)
 
-**Status**: Major API redesign completed and deployed successfully
+**Status**: Major API upgrade to entities format completed and deployed successfully
 
-**MAJOR REDESIGN: Structured Output Format (v2.0)**:
-1. **API Response Transformation** - Redesigned analyze endpoint to return structured primary subject summary instead of raw CV data
-2. **Enhanced Inference Engine** - Added comprehensive operator detection, fleet ID extraction, and license plate recognition
-3. **Client-Friendly Format** - New JSON structure with category/subcategory/operator/fleet_id for easy mobile app integration
-4. **Comprehensive Documentation** - Created complete API reference and updated iOS integration guide
+**MAJOR UPGRADE: Entities Format (v3.0) - Target Definitions Implementation**:
+1. **Multi-Entity Support** - API now returns array of entities instead of single primary subject
+2. **Structured Identifiers** - Implemented `type:jurisdiction:number` format for all identifiers
+3. **Enhanced Type System** - Using colon syntax for categories: `commercial_vehicle:van`
+4. **Target Definitions Compliance** - Full alignment with `docs/target-definitions.md` specifications
+5. **Clean Architecture** - Simplified response format focused on entities only
 
-**Previous Critical Fixes**:
-1. **Fixed Step Functions parameter passing** - Resolved 400 errors in parallel processing steps
-2. **Fixed bounding box coordinates** - Implemented actual image dimension detection for accurate CV results
-3. **Updated CORS configuration** - Added specific origins with wildcard support for Vercel deployments
-4. **Enhanced preprocessing pipeline** - Added native image dimension parsing without external dependencies
-
-**New API Response Format (v2.0)**:
+**API Response Format (v3.0)**:
 ```json
 {
-  "primary_subject": {
-    "category": "commercial_vehicle",
-    "subcategory": "delivery_van", 
-    "operator": "UPS",
-    "fleet_id": "1Z2345",
-    "confidence": 0.87,
-    "additional_details": {
-      "license_plate": "ABC123",
-      "text_identifiers": ["1Z2345", "UPS"],
-      "description": "UPS delivery vehicle with fleet ID 1Z2345"
+  "entities": [
+    {
+      "type": "commercial_vehicle:van",
+      "operator": "USPS",
+      "identifiers": [
+        "fleet:8424021",
+        "license_plate:unknown:ABC123"
+      ],
+      "confidence": 0.85,
+      "properties": {}
     }
+  ],
+  "processing_metadata": {
+    "response_format_version": "3.0"
   }
 }
 ```
 
-**Technical Implementation**:
-- **Enhanced inference**: Automatic operator detection (UPS, FedEx, USPS, Amazon, etc.)
-- **Smart categorization**: Comprehensive taxonomy (commercial_vehicle, emergency_vehicle, cargo_container)
-- **Fleet identification**: Pattern-based extraction of fleet IDs, container IDs, license plates
-- **Backward compatibility**: Legacy detailed analysis preserved for debugging
-- **Response versioning**: Format version 2.0 with processing metadata
+**Technical Implementation (v3.0)**:
+- **Multi-entity detection**: Ready for images with multiple commercial vehicles/containers
+- **Structured identifiers**: `fleet:ID`, `license_plate:jurisdiction:number`, `container_id:ISO_ID`
+- **Enhanced categorization**: Colon syntax supports extensible taxonomy
+- **Operator detection**: Automatic recognition of UPS, FedEx, USPS, Amazon, shipping lines, etc.
+- **Properties framework**: Ready for entity-specific metadata (size codes, ratings, etc.)
+- **Clean API**: Simplified response structure focused on entities
 
 **Test Results**:
-- Successfully deployed and tested with IMG_4074.jpg
-- Correctly extracted fleet ID "8424021" from test image
-- Response processing time: ~8 seconds
+- Successfully deployed and tested with mock USPS vehicle data
+- Correctly generates entities with structured identifiers
+- Response processing time: ~5 seconds
 - All Lambda functions operating without errors
-- Mobile-friendly structured output validated
+- Clean API structure validated
 
 ```bash
 # Setup development environment
@@ -213,3 +212,7 @@ The service includes an inference engine that combines visual object detection w
   ]
 }
 ```
+
+## API Backward Compatibility
+
+- We don't need to maintain backward compatibility in the api until informed otherwise

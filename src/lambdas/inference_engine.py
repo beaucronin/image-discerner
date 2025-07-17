@@ -55,31 +55,81 @@ VEHICLE_PATTERNS = {
     }
 }
 
-def extract_fleet_identifiers(text_blocks: List[Dict], extracted_text: str) -> List[Dict]:
-    """Extract potential fleet identifiers from text"""
+def extract_structured_identifiers(text_blocks: List[Dict], extracted_text: str) -> List[str]:
+    """Extract structured identifiers in the format type:jurisdiction:number or type:number"""
+    identifiers = []
+    
+    # Extract license plates with jurisdiction detection
+    license_plates = extract_license_plates_with_jurisdiction(extracted_text)
+    identifiers.extend(license_plates)
+    
+    # Extract fleet identifiers
+    fleet_ids = extract_fleet_ids(extracted_text)
+    identifiers.extend(fleet_ids)
+    
+    # Extract container IDs
+    container_ids = extract_container_ids(extracted_text)
+    identifiers.extend(container_ids)
+    
+    return identifiers
+
+def extract_license_plates_with_jurisdiction(extracted_text: str) -> List[str]:
+    """Extract license plates with jurisdiction detection"""
+    plates = []
+    
+    # Common license plate patterns with basic jurisdiction detection
+    # This is a simplified version - can be expanded with state-specific patterns
+    patterns = [
+        (r'\b[A-Z0-9]{2,3}\s?[A-Z0-9]{3,4}\b', 'unknown'),  # Standard format
+        (r'\b[A-Z]{3}\s?\d{3,4}\b', 'unknown'),              # Letters + numbers
+        (r'\b\d{3}\s?[A-Z]{3}\b', 'unknown')                 # Numbers + letters
+    ]
+    
+    for pattern, default_jurisdiction in patterns:
+        matches = re.findall(pattern, extracted_text.upper())
+        for match in matches:
+            clean_plate = match.replace(' ', '')
+            # For now, use unknown jurisdiction - can be enhanced with state detection
+            plates.append(f"license_plate:unknown:{clean_plate}")
+    
+    return plates
+
+def extract_fleet_ids(extracted_text: str) -> List[str]:
+    """Extract fleet identifiers"""
     fleet_ids = []
     
     # Look for 7-digit numbers (common USPS pattern)
     seven_digit_pattern = re.compile(r'\b\d{7}\b')
     for match in seven_digit_pattern.finditer(extracted_text):
-        fleet_ids.append({
-            'value': match.group(),
-            'type': 'fleet_number',
-            'pattern': '7_digit',
-            'confidence': 0.8
-        })
+        fleet_ids.append(f"fleet:{match.group()}")
     
-    # Look for container IDs (4 letters + 6 digits + 1 digit)
-    container_pattern = re.compile(r'\b[A-Z]{4}\s?\d{6}\s?\d\b')
-    for match in container_pattern.finditer(extracted_text):
-        fleet_ids.append({
-            'value': match.group().replace(' ', ''),
-            'type': 'container_id',
-            'pattern': 'iso_container',
-            'confidence': 0.9
-        })
+    # Look for other fleet patterns
+    fleet_patterns = [
+        r'\b\d{4}-\d{4}\b',  # Common commercial fleet pattern
+        r'\b[A-Z]{2}\d{4,6}\b'  # Letter prefix + numbers
+    ]
+    
+    for pattern in fleet_patterns:
+        matches = re.findall(pattern, extracted_text.upper())
+        for match in matches:
+            fleet_ids.append(f"fleet:{match}")
     
     return fleet_ids
+
+def extract_container_ids(extracted_text: str) -> List[str]:
+    """Extract container IDs in structured format"""
+    container_ids = []
+    
+    # Look for container IDs (4 letters + 6 digits + 1 digit)
+    # More restrictive pattern to avoid false positives
+    container_pattern = re.compile(r'\b[A-Z]{4}\s?\d{6}\s?\d\b')
+    for match in container_pattern.finditer(extracted_text.upper()):
+        clean_id = match.group().replace(' ', '')
+        # Skip if it looks like other patterns (e.g., starts with known operators)
+        if not any(clean_id.startswith(op) for op in ['USPS', 'FEDX', 'UPSX']):
+            container_ids.append(f"container_id:{clean_id}")
+    
+    return container_ids
 
 def calculate_pattern_match_score(pattern_config: Dict, classifications: List[Dict], 
                                 extracted_text: str, text_blocks: List[Dict]) -> float:
@@ -135,8 +185,8 @@ def infer_vehicle_context(classifications: List[Dict], text_analysis: Dict) -> L
     extracted_text = text_analysis.get('extracted_text', '')
     text_blocks = text_analysis.get('text_blocks', [])
     
-    # Extract fleet identifiers
-    fleet_ids = extract_fleet_identifiers(text_blocks, extracted_text)
+    # Extract structured identifiers
+    structured_identifiers = extract_structured_identifiers(text_blocks, extracted_text)
     
     # Test each vehicle pattern
     for vehicle_type, pattern_config in VEHICLE_PATTERNS.items():
@@ -164,20 +214,22 @@ def infer_vehicle_context(classifications: List[Dict], text_analysis: Dict) -> L
                 if re.search(pattern, text_lower):
                     evidence.append(f"text_pattern_{pattern}")
             
-            # Add fleet IDs if found
-            relevant_fleet_ids = []
-            for fleet_id in fleet_ids:
-                if vehicle_type == 'postal_delivery' and fleet_id['pattern'] == '7_digit':
-                    relevant_fleet_ids.append(fleet_id['value'])
-                elif vehicle_type == 'shipping_container' and fleet_id['pattern'] == 'iso_container':
-                    relevant_fleet_ids.append(fleet_id['value'])
+            # Filter relevant identifiers for this vehicle type
+            relevant_identifiers = []
+            for identifier in structured_identifiers:
+                if vehicle_type == 'postal_delivery' and identifier.startswith('fleet:'):
+                    relevant_identifiers.append(identifier)
+                elif vehicle_type == 'shipping_container' and identifier.startswith('container_id:'):
+                    relevant_identifiers.append(identifier)
+                elif identifier.startswith('license_plate:'):
+                    relevant_identifiers.append(identifier)
             
             inference = {
                 'vehicle_type': vehicle_type,
                 'confidence': final_confidence,
                 'evidence': evidence,
-                'fleet_identifiers': relevant_fleet_ids,
-                'description': generate_description(vehicle_type, relevant_fleet_ids)
+                'structured_identifiers': relevant_identifiers,
+                'description': generate_description(vehicle_type, relevant_identifiers)
             }
             
             inferences.append(inference)
@@ -186,7 +238,7 @@ def infer_vehicle_context(classifications: List[Dict], text_analysis: Dict) -> L
     inferences.sort(key=lambda x: x['confidence'], reverse=True)
     return inferences
 
-def generate_description(vehicle_type: str, fleet_ids: List[str]) -> str:
+def generate_description(vehicle_type: str, identifiers: List[str]) -> str:
     """Generate human-readable description of the inference"""
     descriptions = {
         'postal_delivery': 'Postal delivery vehicle',
@@ -197,11 +249,21 @@ def generate_description(vehicle_type: str, fleet_ids: List[str]) -> str:
     
     base_desc = descriptions.get(vehicle_type, f'{vehicle_type} vehicle')
     
-    if fleet_ids:
-        if len(fleet_ids) == 1:
-            return f"{base_desc} with fleet ID {fleet_ids[0]}"
-        else:
-            return f"{base_desc} with fleet IDs {', '.join(fleet_ids)}"
+    if identifiers:
+        # Extract key identifiers for description
+        fleet_ids = [id.split(':')[-1] for id in identifiers if id.startswith('fleet:')]
+        container_ids = [id.split(':')[-1] for id in identifiers if id.startswith('container_id:')]
+        license_plates = [id.split(':')[-1] for id in identifiers if id.startswith('license_plate:')]
+        
+        if fleet_ids:
+            if len(fleet_ids) == 1:
+                return f"{base_desc} with fleet ID {fleet_ids[0]}"
+            else:
+                return f"{base_desc} with fleet IDs {', '.join(fleet_ids)}"
+        elif container_ids:
+            return f"{base_desc} {container_ids[0]}"
+        elif license_plates:
+            return f"{base_desc} with license plate {license_plates[0]}"
     
     return base_desc
 
@@ -232,107 +294,94 @@ def extract_operator_from_text(extracted_text: str) -> Optional[str]:
     
     return None
 
-def extract_license_plate(extracted_text: str) -> Optional[str]:
-    """Extract license plate from text"""
-    # Common license plate patterns
-    patterns = [
-        r'\b[A-Z0-9]{2,3}\s?[A-Z0-9]{3,4}\b',  # Standard format
-        r'\b[A-Z]{3}\s?\d{3,4}\b',              # Letters + numbers
-        r'\b\d{3}\s?[A-Z]{3}\b'                 # Numbers + letters
-    ]
-    
-    for pattern in patterns:
-        matches = re.findall(pattern, extracted_text.upper())
-        if matches:
-            # Return the first reasonable match
-            return matches[0].replace(' ', '')
-    
-    return None
 
-def determine_primary_subject(classifications: List[Dict], text_analysis: Dict, 
-                            contextual_inferences: List[Dict]) -> Dict[str, Any]:
+def determine_entities(classifications: List[Dict], text_analysis: Dict, 
+                      contextual_inferences: List[Dict]) -> List[Dict[str, Any]]:
     """
-    Analyze all available data to determine the primary subject of the image
-    and return a structured summary.
+    Analyze all available data to determine entities in the image
+    and return a list of structured entities.
     """
+    entities = []
     extracted_text = text_analysis.get('extracted_text', '')
     
-    # If we have high-confidence contextual inferences, use the best one
-    if contextual_inferences:
-        best_inference = contextual_inferences[0]  # Already sorted by confidence
-        vehicle_type = best_inference['vehicle_type']
-        
-        # Map vehicle types to our new category/subcategory structure
-        category_mapping = {
-            'postal_delivery': ('commercial_vehicle', 'postal_van'),
-            'commercial_delivery': ('commercial_vehicle', 'delivery_van'),
-            'shipping_container': ('cargo_container', 'shipping_container'),
-            'emergency_vehicle': ('emergency_vehicle', 'emergency_response')
-        }
-        
-        category, subcategory = category_mapping.get(vehicle_type, ('other', 'unknown'))
-        
-        # Extract operator and fleet information
-        operator = extract_operator_from_text(extracted_text)
-        fleet_ids = best_inference.get('fleet_identifiers', [])
-        fleet_id = fleet_ids[0] if fleet_ids else None
-        
-        # Additional details
-        license_plate = extract_license_plate(extracted_text)
-        
-        return {
-            'category': category,
-            'subcategory': subcategory,
-            'operator': operator,
-            'fleet_id': fleet_id,
-            'confidence': best_inference['confidence'],
-            'additional_details': {
-                'license_plate': license_plate,
-                'text_identifiers': fleet_ids,
-                'description': best_inference['description']
-            }
-        }
+    # Extract all structured identifiers
+    structured_identifiers = extract_structured_identifiers(
+        text_analysis.get('text_blocks', []), extracted_text
+    )
     
-    # Fallback: analyze classifications directly
-    if classifications:
+    # If we have high-confidence contextual inferences, use them to create entities
+    if contextual_inferences:
+        for inference in contextual_inferences:
+            if inference['confidence'] > 0.3:  # Only include reasonable confidence
+                vehicle_type = inference['vehicle_type']
+                
+                # Map vehicle types to new type format
+                type_mapping = {
+                    'postal_delivery': 'commercial_vehicle:van',
+                    'commercial_delivery': 'commercial_vehicle:van',
+                    'shipping_container': 'cargo_container',
+                    'emergency_vehicle': 'emergency_vehicle:response'
+                }
+                
+                entity_type = type_mapping.get(vehicle_type, 'unknown')
+                
+                # Extract operator
+                operator = extract_operator_from_text(extracted_text)
+                
+                # Get relevant identifiers for this entity
+                relevant_identifiers = inference.get('structured_identifiers', [])
+                
+                entity = {
+                    'type': entity_type,
+                    'operator': operator,
+                    'identifiers': relevant_identifiers,
+                    'confidence': inference['confidence'],
+                    'properties': {}
+                }
+                
+                entities.append(entity)
+    
+    # Fallback: create entity from classifications if no contextual inferences
+    if not entities and classifications:
         # Find the highest confidence classification
         best_classification = max(classifications, key=lambda x: x.get('confidence', 0))
         
-        category = best_classification.get('category', 'other')
+        category = best_classification.get('category', 'unknown')
         subcategory = best_classification.get('subcategory', 'unknown')
-        confidence = best_classification.get('confidence', 0.0)
         
-        # Try to extract operator even without contextual inference
+        # Map to new type format
+        if category == 'vehicle':
+            if subcategory in ['van', 'truck']:
+                entity_type = 'commercial_vehicle:van'
+            else:
+                entity_type = f'commercial_vehicle:{subcategory}'
+        elif category == 'container':
+            entity_type = 'cargo_container'
+        else:
+            entity_type = 'unknown'
+        
         operator = extract_operator_from_text(extracted_text)
-        license_plate = extract_license_plate(extracted_text)
         
-        # Extract any fleet identifiers from text
-        fleet_ids = extract_fleet_identifiers(text_analysis.get('text_blocks', []), extracted_text)
-        fleet_id = fleet_ids[0]['value'] if fleet_ids else None
-        
-        return {
-            'category': category,
-            'subcategory': subcategory,
+        entity = {
+            'type': entity_type,
             'operator': operator,
-            'fleet_id': fleet_id,
-            'confidence': confidence,
-            'additional_details': {
-                'license_plate': license_plate,
-                'text_identifiers': [fid['value'] for fid in fleet_ids],
-                'description': f"Detected {subcategory}" + (f" operated by {operator}" if operator else "")
-            }
+            'identifiers': structured_identifiers,
+            'confidence': best_classification.get('confidence', 0.0),
+            'properties': {}
         }
+        
+        entities.append(entity)
     
-    # Last resort: generic response
-    return {
-        'category': 'unknown',
-        'subcategory': 'unidentified',
-        'operator': None,
-        'fleet_id': None,
-        'confidence': 0.0,
-        'additional_details': {
-            'license_plate': extract_license_plate(extracted_text),
-            'text_identifiers': [],
-            'description': 'Unable to identify primary subject'
+    # If still no entities, create a minimal unknown entity
+    if not entities:
+        entity = {
+            'type': 'unknown',
+            'operator': None,
+            'identifiers': structured_identifiers,
+            'confidence': 0.0,
+            'properties': {}
         }
-    }
+        entities.append(entity)
+    
+    return entities
+
