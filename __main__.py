@@ -39,6 +39,7 @@ bucket_cors = aws.s3.BucketCorsConfigurationV2(
             allowed_methods=["GET", "PUT", "POST", "DELETE", "HEAD"],
             allowed_origins=[
                 "http://localhost:5173",
+                "https://layers-collector-svelte.vercel.app",
                 "https://layers-collector-svelte-*-beaus-projects-59f320cd.vercel.app"
             ],
             expose_headers=["ETag"],
